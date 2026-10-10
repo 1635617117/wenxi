@@ -44,6 +44,7 @@ import AsterLink
             binaryMessenger: registrar.messenger()
         )
         channel.setMethodCallHandler(shared.handle)
+        shared.rootVC = registrar.view()
     }
 }
 
@@ -73,6 +74,9 @@ private func goString(_ body: (NSErrorPointer) -> String) throws -> String {
 @objc final class GopeedBridge: NSObject {
     private var nativeStarted = false
     private let lock = NSLock()
+    /// The Flutter view controller, supplied by the registrar at launch.
+    /// Used as the presenter for UI overlays (directory picker, etc.).
+    weak var rootVC: UIViewController?
 
     func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
@@ -159,8 +163,11 @@ private func goString(_ body: (NSErrorPointer) -> String) throws -> String {
 
     private static func presentDirectoryPicker(result: @escaping FlutterResult) {
         DispatchQueue.main.async {
-            // forOpeningContentTypes: is iOS 14+; the deployment target is 12.0,
-            // so use the older documentTypes:in: form with the public.folder UTI.
+            guard let root = findRootViewController() else {
+                result(FlutterError(code: "picker", message: "无法打开目录选择器", details: nil))
+                return
+            }
+            // documentTypes:in: is iOS 8+, compatible with our deployment target.
             let picker = UIDocumentPickerViewController(
                 documentTypes: ["public.folder"], in: .open)
             picker.allowsMultipleSelection = false
@@ -170,13 +177,28 @@ private func goString(_ body: (NSErrorPointer) -> String) throws -> String {
             }
             pendingPicker = delegate
             picker.delegate = delegate
-            guard let root = UIApplication.shared.delegate?.window??.rootViewController else {
-                pendingPicker = nil
-                result(FlutterError(code: "picker", message: "无法打开目录选择器", details: nil))
-                return
-            }
             root.present(picker, animated: true, completion: nil)
         }
+    }
+
+    /// Returns the topmost usable view controller, preferring the registered
+    /// Flutter view controller, then falling back to the key window via
+    /// connected scenes.
+    private static func findRootViewController() -> UIViewController? {
+        // 1. Flutter registrar-supplied view controller (most reliable)
+        if let vc = shared.rootVC { return vc }
+        // 2. iOS 13+ key window from connected scenes
+        if #available(iOS 13.0, *) {
+            for scene in UIApplication.shared.connectedScenes {
+                guard let windowScene = scene as? UIWindowScene,
+                      let key = windowScene.windows.first(where: { $0.isKeyWindow }),
+                      let root = key.rootViewController
+                else { continue }
+                return root
+            }
+        }
+        // 3. Legacy delegate window fallback
+        return UIApplication.shared.delegate?.window??.rootViewController
     }
 
     // MARK: Engine RPC (mirrors NativeBridge.kt nativeCall, L293-317)
