@@ -94,13 +94,20 @@ jobs:
           cd ios
           pod install || (pod repo update && pod install)
 
-      # 5. Unsigned release build. `flutter build ipa` refuses to run without a
-      #    Development Team / provisioning profile even with --no-codesign, so
-      #    build the .app (which honours --no-codesign) and package the ipa here.
+      # 5. Unsigned release build. `flutter build ios/ipa` aborts after a
+      #    successful Xcode build with "requires a selected Development Team",
+      #    even with --no-codesign. Drive xcodebuild directly with signing
+      #    disabled and package the ipa ourselves.
       - name: Build unsigned ipa
         run: |
-          flutter build ios --release --no-codesign
-          APP=$(find build/ios -name "Runner.app" -maxdepth 3 | head -1)
+          set -o pipefail
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner \
+            -configuration Release -sdk iphoneos \
+            -derivedDataPath build/ios/xcode \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" PROVISIONING_PROFILE_SPECIFIER="" \
+            build 2>&1 | tail -25
+          APP=$(find build/ios/xcode -name "Runner.app" -maxdepth 6 | head -1)
           [ -n "$APP" ] || { echo "Runner.app not found"; exit 1; }
           rm -rf Payload && mkdir -p Payload build/ios/ipa
           cp -R "$APP" Payload/
