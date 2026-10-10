@@ -17,7 +17,7 @@ enum CloudPlatform {
     '115sha1.com',
   ]),
   baidu('Baidu', '百度网盘', '百度', 'baidu', ['pan.baidu.com', 'baidu.com']),
-  quark('Quark', '夸克网盘', '夸克', 'quark', ['quark.cn']),
+  quark('Quark', '夸克网盘', '夸克', 'quark', ['quark.cn', 'qualk.cn']),
   uc('Uc', 'UC网盘', 'UC', 'uc', ['uc.cn']),
   xunlei('Xunlei', '迅雷网盘', '迅雷', 'xunlei', ['xunlei.com']),
   pan123('Pan123', '123网盘', '123', '123', ['123pan.com', '123pan.cn']),
