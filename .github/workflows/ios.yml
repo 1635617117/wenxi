@@ -110,7 +110,11 @@ jobs:
             -derivedDataPath build/ios/xcode \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" PROVISIONING_PROFILE_SPECIFIER="" \
-            build 2>&1 | tail -25
+            build | tee build.log || {
+              echo "=== LAST 200 LINES OF BUILD LOG ==="
+              tail -200 build.log
+              exit 1
+            }
           APP=$(find build/ios/xcode -name "Runner.app" -maxdepth 6 | head -1)
           [ -n "$APP" ] || { echo "Runner.app not found"; exit 1; }
           rm -rf Payload && mkdir -p Payload build/ios/ipa
