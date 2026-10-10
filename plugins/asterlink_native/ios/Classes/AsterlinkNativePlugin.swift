@@ -31,6 +31,7 @@
 
 import Flutter
 import Foundation
+import UIKit
 // Module name == framework/product name.
 import AsterLink
 
@@ -77,6 +78,8 @@ private func goString(_ body: (NSErrorPointer) -> String) throws -> String {
         switch call.method {
         case "paths":
             result(Self.pathsPayload())
+        case "chooseDirectory":
+            Self.presentDirectoryPicker(result: result)
         case "gopeed":
             // Engine calls run off the platform thread, like nativeWorker.
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -144,6 +147,34 @@ private func goString(_ body: (NSErrorPointer) -> String) throws -> String {
         let values = try? candidate.resourceValues(
             forKeys: [.volumeAvailableCapacityForImportantUsageKey])
         return Int(values?.volumeAvailableCapacityForImportantUsage ?? 0)
+    }
+
+    // MARK: Directory picker
+
+    /// file_selector_ios does not implement getDirectoryPath, so Dart's
+    /// FileAccess.chooseDirectory would throw UnimplementedError on iOS. Present
+    /// a folder-only UIDocumentPickerViewController here instead and resolve to
+    /// the selected directory path.
+    private static var pendingPicker: DirectoryPickerDelegate?
+
+    private static func presentDirectoryPicker(result: @escaping FlutterResult) {
+        DispatchQueue.main.async {
+            let picker = UIDocumentPickerViewController(
+                forOpeningContentTypes: [.folder], asCopy: false)
+            picker.allowsMultipleSelection = false
+            let delegate = DirectoryPickerDelegate { path in
+                pendingPicker = nil
+                result(path)
+            }
+            pendingPicker = delegate
+            picker.delegate = delegate
+            guard let root = UIApplication.shared.delegate?.window??.rootViewController else {
+                pendingPicker = nil
+                result(FlutterError(code: "picker", message: "无法打开目录选择器", details: nil))
+                return
+            }
+            root.present(picker, animated: true, completion: nil)
+        }
     }
 
     // MARK: Engine RPC (mirrors NativeBridge.kt nativeCall, L293-317)
@@ -245,5 +276,29 @@ private func goString(_ body: (NSErrorPointer) -> String) throws -> String {
         }
         try goBool { GopeedOpen(dir.path, cache.path, key, $0) }
         nativeStarted = true
+    }
+}
+
+/// Keeps the document picker alive until the user picks a folder or cancels,
+/// then resolves the pending FlutterResult with the selected directory path.
+final class DirectoryPickerDelegate: NSObject, UIDocumentPickerDelegate {
+    private let completion: (String?) -> Void
+    init(_ completion: @escaping (String?) -> Void) {
+        self.completion = completion
+    }
+
+    func documentPicker(
+        _ controller: UIDocumentPickerViewController,
+        didPickDocumentsAt urls: [URL]
+    ) {
+        // Resolve to the on-disk path. "On My iPhone" folders are directly
+        // writable; security-scoped URLs are accessed here for the current call.
+        let url = urls.first
+        _ = url?.startAccessingSecurityScopedResource()
+        completion(url?.path)
+    }
+
+    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        completion(nil)
     }
 }

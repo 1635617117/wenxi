@@ -162,17 +162,20 @@ class NativePlaybackDevice extends PlaybackDevice {
       );
     } else if (_platform == TargetPlatform.iOS) {
       // iOS has no native fullscreen method. Drive it with SystemChrome:
-      // hide the status bar and lock landscape while fullscreen, then restore
-      // edge-to-edge and every orientation when leaving.
+      // enter by hiding chrome and locking landscape-left, exit by restoring
+      // edge-to-edge and portrait. Locking a single orientation on both sides
+      // makes the rotation decisive instead of leaving the OS to keep the
+      // current (landscape) state when every orientation is re-allowed.
       if (enabled) {
         await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
         await SystemChrome.setPreferredOrientations([
           DeviceOrientation.landscapeLeft,
-          DeviceOrientation.landscapeRight,
         ]);
       } else {
         await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-        await SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+        await SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+        ]);
       }
     }
     _fullscreen = enabled;
@@ -231,7 +234,9 @@ class NativePlaybackDevice extends PlaybackDevice {
       if (_windows && _fullscreen) {
         await windowManager.setFullScreen(_previousWindowsFullscreen);
       }
-      if (_platform == TargetPlatform.iOS && _fullscreen) {
+      if (_platform == TargetPlatform.iOS) {
+        // Leaving fullscreen locks portrait, so restore edge-to-edge and full
+        // auto-rotation here regardless of _fullscreen.
         await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
         await SystemChrome.setPreferredOrientations(DeviceOrientation.values);
       }

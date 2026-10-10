@@ -159,9 +159,9 @@ class PlatformFileAccess implements FileAccess {
   }
 
   @override
-  Future<String?> chooseDirectory() async => Platform.isAndroid
-      ? nativeChannel.invokeMethod<String>('chooseDirectory')
-      : getDirectoryPath(confirmButtonText: '选择下载目录');
+  Future<String?> chooseDirectory() async => Platform.isWindows
+      ? getDirectoryPath(confirmButtonText: '选择下载目录')
+      : nativeChannel.invokeMethod<String>('chooseDirectory');
   @override
   Future<int> freeBytes(String path) async {
     if (_android) {
