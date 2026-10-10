@@ -41,7 +41,11 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          # Pinned to the version the project's own setup action uses (.github/
+          # actions/setup). Newer stable releases apply stricter Dart null
+          # promotion rules and reject upstream sources such as
+          # lib/download/download_manager.dart.
+          flutter-version: '3.41.4'
           cache: true
 
       # 1. Build the Go engine into an xcframework and drop it where the local
