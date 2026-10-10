@@ -18,12 +18,15 @@ TOOLS="$NATIVE/.tools-ios"
 OUT="$ROOT/plugins/asterlink_native/ios"
 
 # Pinned to the same x/mobile commit as build-gopeed.ps1.
+# gomobile init installs gobind@latest on its own, which can require a newer Go
+# than the engine is pinned to (x/mobile 2026-09 needs go >= 1.26). Do not hard
+# pin GOTOOLCHAIN here: let it upgrade on demand, then the engine itself still
+# builds with the version its go.mod asks for.
 MOBILE_VERSION="v0.0.0-20250911085028-6912353760cf"
-GO_TOOLCHAIN="go1.24.7"
 
 export GOBIN="$TOOLS"
 export PATH="$TOOLS:$PATH"
-export GOTOOLCHAIN="$GO_TOOLCHAIN"
+export GOTOOLCHAIN="${GOTOOLCHAIN:-auto}"
 export GOFLAGS="-mod=mod"
 : "${GOPROXY:=https://proxy.golang.org,direct}"
 export GOPROXY

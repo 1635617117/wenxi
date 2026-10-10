@@ -27,7 +27,7 @@ jobs:
       PUB_HOSTED_URL: https://pub.dev
       FLUTTER_STORAGE_BASE_URL: https://storage.googleapis.com
       GOPROXY: https://proxy.golang.org,direct
-      GOTOOLCHAIN: go1.24.7
+      GOTOOLCHAIN: auto
 
     steps:
       - uses: actions/checkout@v4
@@ -36,7 +36,8 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.24.7'
+          # gomobile init pulls gobind@latest, which requires go >= 1.26.
+          go-version: '1.26'
 
       - uses: subosito/flutter-action@v2
         with:
