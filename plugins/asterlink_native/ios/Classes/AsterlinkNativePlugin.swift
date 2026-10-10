@@ -13,27 +13,21 @@
 // native/build-gopeed-ios.sh. Go funcs map to the Obj-C/Swift class `Gopeed`.
 // The dispatch table below mirrors NativeBridge.kt lines 293-317 one-for-one.
 //
-// SELECTOR / MODULE CALIBRATION (first build only):
-//   gomobile bind's generated surface depends on the x/mobile pin
-//   (v0.0.0-20250911085028-...). Two things to verify against
-//   AsterLink.xcframework/ios-arm64/*/Headers/*.h:
-//
-//   (a) Module import. gomobile frameworks often ship WITHOUT a module.modulemap,
-//       in which case `import AsterLink` fails. Two fixes, pick one:
-//         - add a modulemap under the framework's Modules/ dir:
-//             module AsterLink { umbrella header "AsterLink.h"; export *; }
-//           and point the podspec at it via
-//             s.pod_target_xcconfig = { 'HEADER_SEARCH_PATHS' => ... }
-//         - or call the Obj-C class from an .m file instead (no Swift import),
-//           which needs no modulemap at all.
-//   (b) Error style. Go funcs returning `error` may surface as Swift `throws`
-//       (as coded below) or as a trailing `GopeedGoError **` out-parameter /
-//       nullable return. If the compiler objects to `try Gopeed.x(...)`, switch
-//       that call to the Obj-C form.
-//
-//   The dispatch LOGIC (which method -> which Go func -> which string to return)
-//   mirrors NativeBridge.kt exactly and is authoritative; only the call spelling
-//   may need tuning.
+// Generated surface (confirmed from AsterLink.xcframework .../Headers/Gopeed.objc.h):
+//   gomobile emits plain C functions, NOT an ObjC class:
+//     BOOL   GopeedOpen(storageDir, cacheDir, encodedKey, NSError**) 
+//     BOOL   GopeedBegin(value, NSError**)            BOOL GopeedPause(id, NSError**)
+//     BOOL   GopeedRemove(id, NSError**)              BOOL GopeedClose(NSError**)
+//     BOOL   GopeedStartHttpProbe(value, NSError**)   BOOL GopeedResolveTorrent(value, NSError**)
+//     NSString* GopeedSnapshot(id, NSError**)         NSString* GopeedHttpProbeStatus(id, NSError**)
+//     NSString* GopeedTorrentMetadata(id, NSError**)  NSString* GopeedStartTorrentStream(value, NSError**)
+//     NSString* GopeedTorrentStreamStatus(id, NSError**)
+//     void   GopeedStopHttpProbe(id)  GopeedStopTorrentStream(id)
+//     void   GopeedCancelTorrent(id)  GopeedInterruptTorrentStream(id)
+//   Swift imports the NSError** form as `throws`, hence the calls below.
+//   The framework ships no module.modulemap; the CI job injects one at the
+//   framework root (umbrella header "Headers/AsterLink.h") so `import AsterLink`
+//   resolves these symbols.
 
 import Flutter
 import Foundation
@@ -166,41 +160,41 @@ private struct BridgeError: Error {
             try openNative(args)
             return "null"
         case "begin":
-            try requireStarted(); _ = try Gopeed.begin(rawArgs); return "null"
+            try requireStarted(); _ = try GopeedBegin(rawArgs); return "null"
         case "httpProbeStart":
-            try requireStarted(); _ = try Gopeed.startHttpProbe(rawArgs); return "null"
+            try requireStarted(); _ = try GopeedStartHttpProbe(rawArgs); return "null"
         case "httpProbeStatus":
-            try requireStarted(); return try Gopeed.httpProbeStatus(id)
+            try requireStarted(); return try GopeedHttpProbeStatus(id)
         case "httpProbeStop":
-            if nativeStarted { Gopeed.stopHttpProbe(id) }
+            if nativeStarted { GopeedStopHttpProbe(id) }
             return "null"
         case "torrentResolve":
-            try requireStarted(); _ = try Gopeed.resolveTorrent(rawArgs); return "null"
+            try requireStarted(); _ = try GopeedResolveTorrent(rawArgs); return "null"
         case "torrentMetadata":
-            try requireStarted(); return try Gopeed.torrentMetadata(id)
+            try requireStarted(); return try GopeedTorrentMetadata(id)
         case "torrentCancel":
-            if nativeStarted { Gopeed.cancelTorrent(id) }
+            if nativeStarted { GopeedCancelTorrent(id) }
             return "null"
         case "torrentStreamStart":
-            try requireStarted(); return try Gopeed.startTorrentStream(rawArgs)
+            try requireStarted(); return try GopeedStartTorrentStream(rawArgs)
         case "torrentStreamStatus":
-            try requireStarted(); return try Gopeed.torrentStreamStatus(id)
+            try requireStarted(); return try GopeedTorrentStreamStatus(id)
         case "torrentStreamStop":
-            if nativeStarted { Gopeed.stopTorrentStream(id) }
+            if nativeStarted { GopeedStopTorrentStream(id) }
             return "null"
         case "torrentStreamInterrupt":
-            if nativeStarted { Gopeed.interruptTorrentStream(id) }
+            if nativeStarted { GopeedInterruptTorrentStream(id) }
             return "null"
         case "snapshot":
-            try requireStarted(); return try Gopeed.snapshot(id)
+            try requireStarted(); return try GopeedSnapshot(id)
         case "pause":
-            if nativeStarted { _ = try Gopeed.pause(id) }
+            if nativeStarted { _ = try GopeedPause(id) }
             return "null"
         case "remove":
-            if nativeStarted { _ = try Gopeed.remove(id) }
+            if nativeStarted { _ = try GopeedRemove(id) }
             return "null"
         case "close":
-            if nativeStarted { _ = try Gopeed.close(); nativeStarted = false }
+            if nativeStarted { _ = try GopeedClose(); nativeStarted = false }
             return "null"
         default:
             throw BridgeError(code: "operation", message: "未知平台请求")
@@ -221,7 +215,7 @@ private struct BridgeError: Error {
         guard !key.isEmpty else {
             throw BridgeError(code: "operation", message: "下载存储密钥无效")
         }
-        _ = try Gopeed.open(dir.path, cache.path, key)
+        _ = try GopeedOpen(dir.path, cache.path, key)
         nativeStarted = true
     }
 }

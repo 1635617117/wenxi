@@ -55,15 +55,17 @@ jobs:
         run: |
           FW=plugins/asterlink_native/ios/AsterLink.xcframework
           for SLICE in "$FW"/*/AsterLink.framework; do
-            mkdir -p "$SLICE/Modules"
-            cat > "$SLICE/Modules/module.modulemap" <<'EOF'
+            # Placed at the framework root so umbrella paths resolve against it
+            # (a Modules/ subdir would need ../Headers/...).
+            cat > "$SLICE/module.modulemap" <<'EOF'
           module AsterLink {
-            umbrella header "AsterLink.h"
+            umbrella header "Headers/AsterLink.h"
             export *
             module * { export * }
           }
           EOF
-            echo "modulemap -> $SLICE"
+            echo "modulemap -> $SLICE/module.modulemap"
+            cat "$SLICE/module.modulemap"
           done
 
       # Diagnostics: exact ObjC class/method names for the Swift bridge.
