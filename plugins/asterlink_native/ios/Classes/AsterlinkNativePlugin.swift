@@ -44,7 +44,6 @@ import AsterLink
             binaryMessenger: registrar.messenger()
         )
         channel.setMethodCallHandler(shared.handle)
-        shared.rootVC = registrar.view()
     }
 }
 
@@ -74,9 +73,6 @@ private func goString(_ body: (NSErrorPointer) -> String) throws -> String {
 @objc final class GopeedBridge: NSObject {
     private var nativeStarted = false
     private let lock = NSLock()
-    /// The Flutter view controller, supplied by the registrar at launch.
-    /// Used as the presenter for UI overlays (directory picker, etc.).
-    weak var rootVC: UIViewController?
 
     func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
@@ -180,13 +176,9 @@ private func goString(_ body: (NSErrorPointer) -> String) throws -> String {
         }
     }
 
-    /// Returns the topmost usable view controller, preferring the registered
-    /// Flutter view controller, then falling back to the key window via
-    /// connected scenes.
+    /// Returns the topmost usable view controller from connected scenes (iOS 13+),
+    /// falling back to the legacy delegate window.
     private static func findRootViewController() -> UIViewController? {
-        // 1. Flutter registrar-supplied view controller (most reliable)
-        if let vc = shared.rootVC { return vc }
-        // 2. iOS 13+ key window from connected scenes
         if #available(iOS 13.0, *) {
             for scene in UIApplication.shared.connectedScenes {
                 guard let windowScene = scene as? UIWindowScene,
@@ -196,7 +188,6 @@ private func goString(_ body: (NSErrorPointer) -> String) throws -> String {
                 return root
             }
         }
-        // 3. Legacy delegate window fallback
         return UIApplication.shared.delegate?.window??.rootViewController
     }
 
