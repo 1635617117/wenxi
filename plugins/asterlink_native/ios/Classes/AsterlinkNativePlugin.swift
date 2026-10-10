@@ -159,8 +159,10 @@ private func goString(_ body: (NSErrorPointer) -> String) throws -> String {
 
     private static func presentDirectoryPicker(result: @escaping FlutterResult) {
         DispatchQueue.main.async {
+            // forOpeningContentTypes: is iOS 14+; the deployment target is 12.0,
+            // so use the older documentTypes:in: form with the public.folder UTI.
             let picker = UIDocumentPickerViewController(
-                forOpeningContentTypes: [.folder], asCopy: false)
+                documentTypes: ["public.folder"], in: .open)
             picker.allowsMultipleSelection = false
             let delegate = DirectoryPickerDelegate { path in
                 pendingPicker = nil
