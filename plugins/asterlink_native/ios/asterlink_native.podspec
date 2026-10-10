@@ -15,6 +15,9 @@ Pod::Spec.new do |s|
   # framework search paths, so Runner.xcodeproj needs no manual edit.
   s.vendored_frameworks = 'AsterLink.xcframework'
   s.source_files        = 'Classes/**/*.{swift,h,m}'
+  # Go's runtime/DNS code references res_9_ninit, res_9_nsearch, res_9_nclose.
+  # macOS links libresolv implicitly; iOS does not, so link it explicitly.
+  s.libraries = 'resolv'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
 
   s.dependency 'Flutter'
