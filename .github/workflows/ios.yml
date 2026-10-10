@@ -49,16 +49,31 @@ jobs:
       - name: Build Gopeed engine for iOS
         run: bash native/build-gopeed-ios.sh
 
-      # Diagnostics: reveal the exact ObjC class/selector names gomobile emits,
-      # so the Swift bridge can be matched to them without a local Mac.
+      # gomobile ships the framework without a module.modulemap, so Swift's
+      # `import AsterLink` sees no ObjC classes at all. Add one per slice.
+      - name: Inject modulemap
+        run: |
+          FW=plugins/asterlink_native/ios/AsterLink.xcframework
+          for SLICE in "$FW"/*/AsterLink.framework; do
+            mkdir -p "$SLICE/Modules"
+            cat > "$SLICE/Modules/module.modulemap" <<'EOF'
+          module AsterLink {
+            umbrella header "AsterLink.h"
+            export *
+            module * { export * }
+          }
+          EOF
+            echo "modulemap -> $SLICE"
+          done
+
+      # Diagnostics: exact ObjC class/method names for the Swift bridge.
       - name: Dump xcframework headers
         run: |
           FW=plugins/asterlink_native/ios/AsterLink.xcframework
-          find "$FW" -name '*.h' | head -20
-          echo "--- interfaces ---"
-          grep -rhE '@interface|^\+ \(' "$FW" --include='*.h' | head -40 || true
-          echo "--- modulemap ---"
-          find "$FW" -name 'module.modulemap' -exec cat {} \; | head -20 || true
+          echo "--- Gopeed.objc.h (ios-arm64) ---"
+          sed -n '1,80p' "$FW/ios-arm64/AsterLink.framework/Headers/Gopeed.objc.h" || true
+          echo "--- AsterLink.h ---"
+          cat "$FW/ios-arm64/AsterLink.framework/Headers/AsterLink.h" || true
 
       # 2. Generate the iOS runner project (never committed; template-owned).
       - name: Create iOS project
