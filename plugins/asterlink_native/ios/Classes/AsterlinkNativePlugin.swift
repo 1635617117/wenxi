@@ -32,6 +32,9 @@
 import Flutter
 import Foundation
 import UIKit
+#if canImport(UniformTypeIdentifiers)
+import UniformTypeIdentifiers
+#endif
 // Module name == framework/product name.
 import AsterLink
 
@@ -167,9 +170,16 @@ private func goString(_ body: (NSErrorPointer) -> String) throws -> String {
                 result(FlutterError(code: "picker", message: "无法打开目录选择器", details: nil))
                 return
             }
-            // documentTypes:in: is iOS 8+, compatible with our deployment target.
-            let picker = UIDocumentPickerViewController(
-                documentTypes: ["public.folder"], in: .open)
+            // iOS 14+: forOpeningContentTypes (not deprecated)
+            // iOS 12-13: documentTypes:in: with public.folder UTI
+            let picker: UIDocumentPickerViewController
+            if #available(iOS 14.0, *) {
+                picker = UIDocumentPickerViewController(
+                    forOpeningContentTypes: [.folder], asCopy: false)
+            } else {
+                picker = UIDocumentPickerViewController(
+                    documentTypes: ["public.folder"], in: .open)
+            }
             picker.allowsMultipleSelection = false
             let delegate = DirectoryPickerDelegate { path in
                 pendingPicker = nil
