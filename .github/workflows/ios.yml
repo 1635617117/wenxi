@@ -94,21 +94,18 @@ jobs:
           cd ios
           pod install || (pod repo update && pod install)
 
-      # 5. Unsigned release build. Depending on the Flutter version,
-      #    --no-codesign yields an .xcarchive instead of an .ipa, so fall back to
-      #    packaging the archive manually before the artifact step looks for it.
+      # 5. Unsigned release build. `flutter build ipa` refuses to run without a
+      #    Development Team / provisioning profile even with --no-codesign, so
+      #    build the .app (which honours --no-codesign) and package the ipa here.
       - name: Build unsigned ipa
         run: |
-          flutter build ipa --release --no-codesign || true
-          mkdir -p build/ios/ipa
-          if ! ls build/ios/ipa/*.ipa >/dev/null 2>&1; then
-            ARCHIVE=$(find build/ios -name "*.xcarchive" -maxdepth 3 | head -1)
-            [ -n "$ARCHIVE" ] || { echo "no xcarchive produced"; exit 1; }
-            mkdir -p Payload
-            cp -R "$ARCHIVE/Products/Applications/Runner.app" Payload/
-            zip -qry build/ios/ipa/asterlink-unsigned.ipa Payload
-            rm -rf Payload
-          fi
+          flutter build ios --release --no-codesign
+          APP=$(find build/ios -name "Runner.app" -maxdepth 3 | head -1)
+          [ -n "$APP" ] || { echo "Runner.app not found"; exit 1; }
+          rm -rf Payload && mkdir -p Payload build/ios/ipa
+          cp -R "$APP" Payload/
+          zip -qry build/ios/ipa/asterlink-unsigned.ipa Payload
+          rm -rf Payload
           ls -la build/ios/ipa
 
       - name: Upload ipa
