@@ -56,7 +56,7 @@ gomobile bind \
   -tags nosqlite \
   -trimpath \
   -ldflags "-w -s -checklinkname=0 -X github.com/GopeedLab/gopeed/pkg/base.Version=1.8.1" \
-  -target=ios,12.0 \
+  -target=ios \
   -o "$OUT/AsterLink.xcframework" \
   ./bind/asterlink
 

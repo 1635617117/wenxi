@@ -52,6 +52,20 @@ def plist_add(plist, key, type, value)
   system('/usr/libexec/PlistBuddy', '-c', %(Add :#{key} #{type} "#{value}"), plist)
 end
 
+# gomobile's -target=ios takes no version in this x/mobile revision, so the
+# deployment target is set here instead (matches the podspec platform).
+%x(/usr/bin/ruby -e '
+require "xcodeproj"
+p = Xcodeproj::Project.open("ios/Runner.xcodeproj")
+p.targets.each do |t|
+  %w[Debug Release Profile].each do |c|
+    t.build_configuration_list.build_settings(c)["IPHONEOS_DEPLOYMENT_TARGET"] = "12.0"
+  end
+end
+p.save
+puts "set IPHONEOS_DEPLOYMENT_TARGET=12.0"
+') if File.directory?('ios/Runner.xcodeproj')
+
 plist_delete(plist, 'UIBackgroundModes')
 plist_delete(plist, 'NSAppTransportSecurity')
 plist_delete(plist, 'NSLocalNetworkUsageDescription')
