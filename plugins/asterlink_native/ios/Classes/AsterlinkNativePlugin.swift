@@ -55,11 +55,25 @@ private struct BridgeError: Error {
     let message: String
 }
 
+/// Swift does not auto-bridge the trailing NSError** of these plain C imports
+/// into `throws`, so the out-parameter is passed explicitly and mapped here.
+private func goBool(_ body: (NSErrorPointer) -> Bool) throws {
+    var error: NSError?
+    _ = body(&error)
+    if let error { throw BridgeError(code: "operation", message: error.localizedDescription) }
+}
+private func goString(_ body: (NSErrorPointer) -> String) throws -> String {
+    var error: NSError?
+    let value = body(&error)
+    if let error { throw BridgeError(code: "operation", message: error.localizedDescription) }
+    return value
+}
+
 @objc final class GopeedBridge: NSObject {
     private var nativeStarted = false
     private let lock = NSLock()
 
-    private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
         case "paths":
             result(Self.pathsPayload())
@@ -160,25 +174,25 @@ private struct BridgeError: Error {
             try openNative(args)
             return "null"
         case "begin":
-            try requireStarted(); _ = try GopeedBegin(rawArgs); return "null"
+            try requireStarted(); try goBool { GopeedBegin(rawArgs, $0) }; return "null"
         case "httpProbeStart":
-            try requireStarted(); _ = try GopeedStartHttpProbe(rawArgs); return "null"
+            try requireStarted(); try goBool { GopeedStartHttpProbe(rawArgs, $0) }; return "null"
         case "httpProbeStatus":
-            try requireStarted(); return try GopeedHttpProbeStatus(id)
+            try requireStarted(); return try goString { GopeedHttpProbeStatus(id, $0) }
         case "httpProbeStop":
             if nativeStarted { GopeedStopHttpProbe(id) }
             return "null"
         case "torrentResolve":
-            try requireStarted(); _ = try GopeedResolveTorrent(rawArgs); return "null"
+            try requireStarted(); try goBool { GopeedResolveTorrent(rawArgs, $0) }; return "null"
         case "torrentMetadata":
-            try requireStarted(); return try GopeedTorrentMetadata(id)
+            try requireStarted(); return try goString { GopeedTorrentMetadata(id, $0) }
         case "torrentCancel":
             if nativeStarted { GopeedCancelTorrent(id) }
             return "null"
         case "torrentStreamStart":
-            try requireStarted(); return try GopeedStartTorrentStream(rawArgs)
+            try requireStarted(); return try goString { GopeedStartTorrentStream(rawArgs, $0) }
         case "torrentStreamStatus":
-            try requireStarted(); return try GopeedTorrentStreamStatus(id)
+            try requireStarted(); return try goString { GopeedTorrentStreamStatus(id, $0) }
         case "torrentStreamStop":
             if nativeStarted { GopeedStopTorrentStream(id) }
             return "null"
@@ -186,15 +200,15 @@ private struct BridgeError: Error {
             if nativeStarted { GopeedInterruptTorrentStream(id) }
             return "null"
         case "snapshot":
-            try requireStarted(); return try GopeedSnapshot(id)
+            try requireStarted(); return try goString { GopeedSnapshot(id, $0) }
         case "pause":
-            if nativeStarted { _ = try GopeedPause(id) }
+            if nativeStarted { try goBool { GopeedPause(id, $0) } }
             return "null"
         case "remove":
-            if nativeStarted { _ = try GopeedRemove(id) }
+            if nativeStarted { try goBool { GopeedRemove(id, $0) } }
             return "null"
         case "close":
-            if nativeStarted { _ = try GopeedClose(); nativeStarted = false }
+            if nativeStarted { try goBool { GopeedClose($0) }; nativeStarted = false }
             return "null"
         default:
             throw BridgeError(code: "operation", message: "未知平台请求")
@@ -215,7 +229,7 @@ private struct BridgeError: Error {
         guard !key.isEmpty else {
             throw BridgeError(code: "operation", message: "下载存储密钥无效")
         }
-        _ = try GopeedOpen(dir.path, cache.path, key)
+        try goBool { GopeedOpen(dir.path, cache.path, key, $0) }
         nativeStarted = true
     }
 }
