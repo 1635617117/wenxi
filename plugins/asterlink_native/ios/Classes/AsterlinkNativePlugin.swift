@@ -54,6 +54,13 @@ import AsterLink
 
 // MARK: - Bridge
 
+/// Thrown inside the RPC layer and mapped to FlutterError at the channel
+/// boundary. FlutterError is a struct and cannot be thrown directly.
+private struct BridgeError: Error {
+    let code: String
+    let message: String
+}
+
 @objc final class GopeedBridge: NSObject {
     private var nativeStarted = false
     private let lock = NSLock()
@@ -72,8 +79,10 @@ import AsterLink
                 do {
                     let out = try self.nativeCall(method, payload)
                     DispatchQueue.main.async { result(out) }
-                } catch let e as FlutterError {
-                    DispatchQueue.main.async { result(e) }
+                } catch let e as BridgeError {
+                    DispatchQueue.main.async {
+                        result(FlutterError(code: e.code, message: e.message, details: nil))
+                    }
                 } catch {
                     DispatchQueue.main.async {
                         result(FlutterError(
@@ -127,12 +136,12 @@ import AsterLink
     private func requireId(_ method: String, _ id: String) throws {
         if ["pause", "remove", "snapshot"].contains(method),
            id.range(of: "^[A-Za-z0-9_-]{1,100}$", options: .regularExpression) == nil {
-            throw FlutterError(code: "operation", message: "无效的下载任务编号", details: nil)
+            throw BridgeError(code: "operation", message: "无效的下载任务编号")
         }
     }
     private func requireStarted() throws {
         guard nativeStarted else {
-            throw FlutterError(code: "operation", message: "下载组件连接已中断", details: nil)
+            throw BridgeError(code: "operation", message: "下载组件连接已中断")
         }
     }
 
@@ -194,7 +203,7 @@ import AsterLink
             if nativeStarted { _ = try Gopeed.close(); nativeStarted = false }
             return "null"
         default:
-            throw FlutterError(code: "operation", message: "未知平台请求", details: nil)
+            throw BridgeError(code: "operation", message: "未知平台请求")
         }
     }
 
@@ -210,7 +219,7 @@ import AsterLink
         try? FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
         let key = (args["key"] as? String) ?? ""
         guard !key.isEmpty else {
-            throw FlutterError(code: "operation", message: "下载存储密钥无效", details: nil)
+            throw BridgeError(code: "operation", message: "下载存储密钥无效")
         }
         _ = try Gopeed.open(dir.path, cache.path, key)
         nativeStarted = true
