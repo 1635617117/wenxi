@@ -26,7 +26,12 @@ InAppWebViewSettings webSettings({
   thirdPartyCookiesEnabled: true,
   // WebView2 requires authorization windows to share the opener's InPrivate
   // profile. Android popups must avoid clearing the shared cookie jar again.
-  incognito: !isPopup || defaultTargetPlatform == TargetPlatform.windows,
+  // iOS must stay non-incognito: an incognito login WebView uses a
+  // WKWebsiteDataStore.nonPersistent() jar while CookieManager reads
+  // WKWebsiteDataStore.default(), so SSO cookies would never be visible and
+  // login detection would silently read nothing.
+  incognito: defaultTargetPlatform != TargetPlatform.iOS &&
+      (!isPopup || defaultTargetPlatform == TargetPlatform.windows),
   cacheEnabled: false,
   saveFormData: false,
   supportZoom: true,
