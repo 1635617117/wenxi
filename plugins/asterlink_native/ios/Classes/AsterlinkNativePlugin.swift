@@ -139,6 +139,13 @@ private func goString(_ body: (NSErrorPointer) -> String) throws -> String {
         return ["data": data.path, "cache": cache.path, "freeBytes": Int(free)]
     }
 
+    private static func freeBytes(at url: URL?) -> Int {
+        let candidate = url ?? cacheDir()
+        let values = try? candidate.resourceValues(
+            forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+        return Int(values?.volumeAvailableCapacityForImportantUsage ?? 0)
+    }
+
     // MARK: Engine RPC (mirrors NativeBridge.kt nativeCall, L293-317)
 
     private func requireId(_ method: String, _ id: String) throws {
@@ -170,6 +177,13 @@ private func goString(_ body: (NSErrorPointer) -> String) throws -> String {
         switch method {
         case "version":
             return "{\"version\":\"1.8.1\",\"protocol\":1}"
+        case "freeSpace":
+            // Not part of the Go engine surface. Desktop transport implements it
+            // in the exe; on iOS report the volume's free capacity directly so
+            // Dart's FileAccess.freeBytes does not fall through to the unknown
+            // method error.
+            let target = (args["path"] as? String).map(URL.init(fileURLWithPath:))
+            return "{\"bytes\":\(Self.freeBytes(at: target))}"
         case "open":
             try openNative(args)
             return "null"
