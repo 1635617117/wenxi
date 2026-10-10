@@ -1,0 +1,91 @@
+name: Build iOS ipa (unsigned)
+
+# Everything runs on a GitHub-hosted macOS runner: Xcode, iOS SDK and the
+# clang toolchain gomobile needs are preinstalled, so no physical Mac is
+# required anywhere in this pipeline. The artifact is unsigned, which is
+# exactly what a jailbroken phone consumes (TrollStore / Sideloadly /
+# AltStore); no Apple developer account or paid certificate is involved.
+#
+# Trigger: push a tag or click "Run workflow" (workflow_dispatch).
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ios:
+    runs-on: macos-14
+    timeout-minutes: 120
+    env:
+      PUB_HOSTED_URL: https://pub.dev
+      FLUTTER_STORAGE_BASE_URL: https://storage.googleapis.com
+      GOPROXY: https://proxy.golang.org,direct
+      GOTOOLCHAIN: go1.24.7
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.7'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # 1. Build the Go engine into an xcframework and drop it where the local
+      #    plugin's podspec looks for it (vendored_frameworks).
+      - name: Build Gopeed engine for iOS
+        run: bash native/build-gopeed-ios.sh
+
+      # 2. Generate the iOS runner project (never committed; template-owned).
+      - name: Create iOS project
+        run: flutter create --platforms=ios .
+
+      # 3. Inject desktop-plugin stubs + Info.plist permissions.
+      - name: Prepare iOS build
+        run: ruby tool/ios_prepare.rb
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      # 4. CocoaPods links AsterLink.xcframework via the plugin's podspec.
+      - name: Install pods
+        run: |
+          cd ios
+          pod install || (pod repo update && pod install)
+
+      # 5. Unsigned release build. Depending on the Flutter version,
+      #    --no-codesign yields an .xcarchive instead of an .ipa, so fall back to
+      #    packaging the archive manually before the artifact step looks for it.
+      - name: Build unsigned ipa
+        run: |
+          flutter build ipa --release --no-codesign || true
+          mkdir -p build/ios/ipa
+          if ! ls build/ios/ipa/*.ipa >/dev/null 2>&1; then
+            ARCHIVE=$(find build/ios -name "*.xcarchive" -maxdepth 3 | head -1)
+            [ -n "$ARCHIVE" ] || { echo "no xcarchive produced"; exit 1; }
+            mkdir -p Payload
+            cp -R "$ARCHIVE/Products/Applications/Runner.app" Payload/
+            zip -qry build/ios/ipa/asterlink-unsigned.ipa Payload
+            rm -rf Payload
+          fi
+          ls -la build/ios/ipa
+
+      - name: Upload ipa
+        uses: actions/upload-artifact@v4
+        with:
+          name: asterlink-ios-unsigned
+          path: build/ios/ipa/*.ipa
+          if-no-files-found: error
+          retention-days: 14

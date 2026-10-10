@@ -295,7 +295,11 @@ class AppServices extends ChangeNotifier {
   static Future<AppServices> open() async {
     Directory data, cache, destination;
     NativeTransport transport;
-    if (Platform.isAndroid) {
+    // iOS reuses the MethodChannel transport: the native side is implemented by
+    // the iOS-only plugin plugins/asterlink_native (Swift, GopeedBridge) behind
+    // the same com.asterlink.app/native channel, so no new Dart transport class
+    // is needed here.
+    if (Platform.isAndroid || Platform.isIOS) {
       final paths = asJson(await nativeChannel.invokeMethod<Object?>('paths'));
       require(
         paths.str('data').isNotEmpty && paths.str('cache').isNotEmpty,
@@ -306,6 +310,9 @@ class AppServices extends ChangeNotifier {
       destination = cache;
       transport = AndroidGopeedTransport();
     } else {
+      // Unchanged from upstream: the desktop path is Windows-only, and other
+      // desktops (macOS/Linux) must keep failing with the original message
+      // instead of silently looking for the Windows engine binary.
       require(Platform.isWindows, '当前版本支持 Android 和 Windows');
       data = Directory(
         p.join((await getApplicationSupportDirectory()).path, 'AsterLink'),

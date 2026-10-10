@@ -31,6 +31,11 @@ dependencies:
   share_plus: 13.3.0
   window_manager: 0.5.2
   tray_manager: 0.5.3
+  # iOS-only host plugin: bridges the 'com.asterlink.app/native' MethodChannel
+  # to the gomobile-built Gopeed xcframework. Declares no Android/Windows
+  # implementation, so those builds skip it silently; iOS links it via CocoaPods.
+  asterlink_native:
+    path: plugins/asterlink_native
 
 dev_dependencies:
   file_selector_android: ^0.5.2+6

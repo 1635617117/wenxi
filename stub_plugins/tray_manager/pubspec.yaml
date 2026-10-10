@@ -1,0 +1,14 @@
+name: tray_manager
+description: >-
+  Pure-Dart no-op stub of tray_manager, used only as a dependency_override for
+  iOS/Android builds where the real desktop plugin has no platform
+  implementation. Desktop builds keep the real package.
+version: 0.5.3
+publish_to: none
+
+environment:
+  sdk: '>=3.11.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter

@@ -18,3 +18,6 @@
 native/gopeed/vendor/** linguist-vendored
 vendor_plugins/** linguist-vendored
 windows/installer/languages/*.isl text eol=lf
+# Runs on Linux/macOS runners; a CRLF shebang fails with "bad interpreter".
+*.sh text eol=lf
+*.rb text eol=lf
