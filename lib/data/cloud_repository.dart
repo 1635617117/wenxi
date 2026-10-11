@@ -31,6 +31,7 @@ import 'providers/xunlei.dart';
 import 'providers/xunlei_protocol.dart';
 import 'providers/xunlei_login.dart';
 import '../domain/xunlei_kouling.dart';
+import 'providers/baidu_direct_link.dart';
 
 class CloudRepository {
   CloudRepository(
@@ -52,6 +53,7 @@ class CloudRepository {
         http,
         store: vault,
         stageCleanup: _stageCleanup,
+        linkLookup: BaiduDirectLink(http).resolve,
       ),
       CloudPlatform.quark: QuarkConnector(
         http,
