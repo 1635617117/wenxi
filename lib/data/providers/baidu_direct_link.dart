@@ -131,14 +131,14 @@ class BaiduDirectLink {
         if (errno != 0) {
           lastError = _mapErrno(errno);
           // 仅"节点被拒/需要签名"这类原因才值得换节点重试。
-          if (errno != -6 && errno != 31023 && errno != 31024) rethrow;
+          if (errno != -6 && errno != 31023 && errno != 31024) throw lastError!;
           continue;
         }
 
         final info = data.list('info').firstOrNull;
         require(info != null, '百度没有返回可用下载链接');
 
-        final dlink = info.str('dlink').trim();
+        final dlink = info!.str('dlink').trim();
         final uri = Uri.tryParse(dlink);
         final host = uri?.host.toLowerCase() ?? '';
         require(
@@ -155,7 +155,7 @@ class BaiduDirectLink {
         final preview = !host.endsWith('pcs.baidu.com');
 
         // 与上游一致：服务端返回的 downloadVersion 必须匹配当前客户端。
-        final served = info.str('downloadVersion');
+        final served = info!.str('downloadVersion');
         require(
           requestedVersion.isEmpty || served.isEmpty || served == requestedVersion,
           '百度取链服务与当前应用不兼容，请联系服务提供方更新服务',

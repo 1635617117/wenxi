@@ -64,3 +64,6 @@ dependency_overrides:
     path: vendor_plugins/media_kit_libs_windows_video
   flutter_inappwebview_windows:
     path: vendor_plugins/flutter_inappwebview_windows
+  # image 4.11.0 requires archive's decodeLazy, which archive 4.2.0 lacks.
+  # Pin image to the last compatible release so pub get stays reproducible.
+  image: 4.10.1
